@@ -89,6 +89,7 @@ cmp_ok '', 'eq', grok qq(my \$path="$f"; require \$path;);
 cmp_ok '', 'eq', grok qq(require "./Data/Dumper.pm";);
 
 cmp_ok "$d >= 2.0",			'eq', grok "require $m; $m->VERSION(2);";
+cmp_ok "$d >= 2.0",			'eq', grok "require $m; $m->require_version(2);";
 cmp_ok "perl(base.pm)\n$d",		'eq', grok "require base; base->import($m)";
 cmp_ok "perl(base.pm) >= 1.0\n$d",	'eq', grok "require base; base->VERSION(1); base->import($m)";
 cmp_ok "perl(base.pm) >= 1.0\n$d",	'eq', grok "require base; base->import($m); base->VERSION(1);";
@@ -97,5 +98,11 @@ cmp_ok "perl-base >= 1:5.6.0\n$d", 'eq', grok qq(require 5.006; *x = sub { requi
 
 cmp_ok "$d\n$d2", "eq", grok qq(require $m; *x = sub { require $m2; };);
 cmp_ok "$d\n$d2", "eq", grok qq(require $m; my \$x = sub { require $m2; };);
+
+cmp_ok "perl(PerlIO.pm)\nperl(PerlIO/scalar.pm)", "eq", grok q(open FH, "<", \$ref);
+cmp_ok "perl(PerlIO.pm)\nperl(PerlIO/scalar.pm)", "eq", grok q(open my $fh, "<", \my $ref);
+
+cmp_ok "perl(PerlIO.pm)\nperl(PerlIO/encoding.pm)\nperl(Encode.pm)", "eq", grok q(open FH, "<:encoding(cp1251)", $0);
+cmp_ok "perl(PerlIO.pm)\nperl(PerlIO/encoding.pm)\nperl(Encode.pm)", "eq", grok q(binmode STDOUT, ":encoding(cp1251)");
 
 #END { $? = 0; }

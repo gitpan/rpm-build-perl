@@ -1,5 +1,5 @@
 Name: rpm-build-perl
-Version: 0.5.1
+Version: 0.5.2
 Release: alt1
 
 Summary: RPM helper scripts to calculate Perl dependencies
@@ -9,9 +9,8 @@ Group: Development/Other
 URL: %CPAN %name
 Source: %name-%version.tar.gz
 
-# http://www.google.com/search?q=%22base.pm+and+eval%22&filter=0
-# http://www.google.com/search?q=%22base.pm%20import%20stuff%22&filter=0
-Patch0: perl5-alt-base_pm-syntax-hack.patch
+# for x86_64
+%define _libdir %_prefix/lib
 
 BuildArch: noarch
 Requires: perl(B.pm) perl(O.pm) perl(Safe.pm)
@@ -19,7 +18,7 @@ Requires: perl(B.pm) perl(O.pm) perl(Safe.pm)
 Conflicts: rpm-build <= 4.0.4-alt24
 Conflicts: perl-devel <= 1:5.8.1-alt4
 
-# Automatically added by buildreq on Wed Dec 22 2004
+# Automatically added by buildreq on Thu Jun 02 2005
 BuildRequires: perl-devel
 
 %description
@@ -29,8 +28,12 @@ tags for the package.
 
 %prep
 %setup -q
-%__cp -av %(eval "`%__perl -V:installprivlib`"; echo "$installprivlib")/base.pm .
-%patch0 -p4
+
+# We want a slightly modified version of base.pm (see perl.req for why).
+base_pm=`%__perl -Mbase -le 'print $INC{"base.pm"}'`
+%__cp -av "$base_pm" base.pm
+%__perl -pi.orig -e 's/^(\s+eval\s+"require\s+\$base)(";)$/$1; import \$base$2/' base.pm
+! diff -up base.pm{.orig,}
 
 %build
 %perl_vendor_build
@@ -38,11 +41,11 @@ tags for the package.
 %install
 %perl_vendor_install INSTALLSCRIPT=%_libdir/rpm
 %__mv %buildroot%perl_vendor_privlib/{base,fake}.pm %buildroot%_libdir/rpm
-%__ln_s `relative %perl_vendor_privlib/B %_libdir/rpm/B` %buildroot%_libdir/rpm/B
-%__ln_s `relative %perl_vendor_privlib/PerlReq %_libdir/rpm/PerlReq` %buildroot%_libdir/rpm/PerlReq
+#__ln_s `relative %perl_vendor_privlib/B %_libdir/rpm/B` %buildroot%_libdir/rpm/B
+#__ln_s `relative %perl_vendor_privlib/PerlReq %_libdir/rpm/PerlReq` %buildroot%_libdir/rpm/PerlReq
 
 %__mkdir_p %buildroot%_sysconfdir/rpm/macros.d
-%__cp -a perl5-alt-rpm-macros %buildroot%_sysconfdir/rpm/macros.d/perl5
+%__cp -av perl5-alt-rpm-macros %buildroot%_sysconfdir/rpm/macros.d/perl5
 
 %files
 %doc README.ALT
@@ -59,6 +62,26 @@ tags for the package.
 %config	%_sysconfdir/rpm/macros.d/perl5
 
 %changelog
+* Thu Jun 02 2005 Alexey Tourbin <at@altlinux.ru> 0.5.2-alt1
+- fixed various perl-5.8.7 build issues
+- bumped version and released on CPAN
+
+* Fri Apr 15 2005 Alexey Tourbin <at@altlinux.ru> 0.5.1-alt5
+- B/PerlReq.pm: track require_version() calls
+- perl.req: restrict LD_LIBRARY_PATH to /usr/lib64 and /usr/lib
+
+* Wed Apr 06 2005 Alexey Tourbin <at@altlinux.ru> 0.5.1-alt4
+- B/PerlReq.pm: track PerlIO dependencies for "open" and "binmode"
+- perl.prov: allow more opcodes for Safe->reval
+
+* Wed Mar 16 2005 Alexey Tourbin <at@altlinux.ru> 0.5.1-alt3
+- %name.spec: use the same %_prefix/lib/rpm directory on x86_64
+- perl.prov: decrease verbosity when processing *.al files
+- macros.d/perl5: preserve timestamps when making test
+
+* Thu Dec 23 2004 Alexey Tourbin <at@altlinux.ru> 0.5.1-alt2
+- perl.req: explode() was not imported
+
 * Wed Dec 22 2004 Alexey Tourbin <at@altlinux.ru> 0.5.1-alt1
 - released on CPAN (see %url)
 - perl.prov: workaround perl bug #32967
@@ -84,7 +107,7 @@ tags for the package.
 
 * Sun Jun 20 2004 Alexey Tourbin <at@altlinux.ru> 0.3-alt1
 - macros.d/perl:
-  + MDK compatibility: added %%perl_vendor{lib,arch}
+  + MDK compatibility: added %%perl_vendor{lib,arch} directories
   + build: fix sharpbang magic lines (with a weired sed expression)
   + MM_install: don't fake PREFIX, rather specify DESTDIR (for gimp-perl)
 - perl.req:
