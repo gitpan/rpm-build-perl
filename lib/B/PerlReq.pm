@@ -33,6 +33,7 @@ our @Skip = (
 	qr(\bvmsish\b),
 	qr(\bVMS|VMS\b),
 	qr(\bWin32|Win32\b),
+	qr(\bCygwin|Cygwin\b),
 # most common
 	qr(^Carp\.pm$),
 	qr(^Exporter\.pm$),
@@ -114,6 +115,35 @@ sub finalize {
 		if $prevDepF;
 }
 
+sub check_encoding ($) {
+	my $enc = shift;
+	eval { local $SIG{__DIE__}; require Encode; } or do {
+		print STDERR "Encode.pm not available at $0 line $CurLine\n";
+		return;
+	};
+	my $e = Encode::resolve_alias($enc) or do {
+		print STDERR "invalid encoding $enc at $0 line $CurLine\n";
+		return;
+	};
+	my $mod = $Encode::ExtModule{$e} || $Encode::ExtModule{lc($e)} or do {
+		print STDERR "no module for encoding $enc at $0 line $CurLine\n";
+		return;
+	};
+	Requires(mod2path($mod));
+}
+
+sub check_perlio_string ($) {
+	local $_ = shift;
+	while (s/\b(\w+)[(](\S+?)[)]//g) {
+		Requires("PerlIO.pm");
+		Requires("PerlIO/$1.pm");
+		if ($1 eq "encoding") {
+			Requires("Encode.pm");
+			check_encoding($2);
+		}
+	}
+}
+
 sub grok_perlio ($) {
 	my $op = shift;
 	my $opname = $op->name;
@@ -131,11 +161,7 @@ sub grok_perlio ($) {
 			Requires("PerlIO/scalar.pm");
 		}
 	}
-	while ($arg2 =~ s/\b(\w+)[(](\S+)[)]//g) {
-		Requires("PerlIO.pm");
-		Requires("PerlIO/$1.pm");
-		Requires("Encode.pm") if $1 eq "encoding";
-	}
+	check_perlio_string($arg2);
 }
 
 sub grok_require ($) {
@@ -151,6 +177,7 @@ sub grok_require ($) {
 
 sub grok_import ($$@) {
 	my ($class, undef, @args) = @_;
+	return unless @args;
 	local $CurOpname = $class;
 	if ($class eq "base") {
 		foreach my $m (@args) {
@@ -168,10 +195,17 @@ sub grok_import ($$@) {
 		my $f = mod2path($args[0]);
 		Requires($f);
 	}
+	elsif ($class eq "encoding") {
+		require Config;
+		Requires("PerlIO/encoding.pm") if $Config::Config{useperlio};
+		check_encoding($args[0]) if $args[0] =~ /^[^:]/;
+		Requires("Filter/Util/Call.pm") if grep { $_ eq "Filter" } @args;
+	}
 }
 
 sub grok_version ($$@) {
 	my ($class, undef, $version) = @_;
+	return unless $version;
 	my $f = mod2path($class);
 	local $CurOpname = "version";
 	Requires($f, $version);
@@ -328,8 +362,7 @@ sub compile {
 	return sub {
 		$| = 1;
 		local $SIG{__DIE__} = sub {
-			print STDERR "# died at $0 line $CurLine:\n# @_";
-			require Carp; Carp::confess;
+			print STDERR "dying at $0 line $CurLine\n" unless $^S;
 		};
 		grok_blocks();
 		grok_main();

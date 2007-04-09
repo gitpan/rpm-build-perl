@@ -1,5 +1,5 @@
 Name: rpm-build-perl
-Version: 0.6.1
+Version: 0.6.2
 Release: alt1
 
 Summary: RPM helper scripts to calculate Perl dependencies
@@ -15,8 +15,8 @@ Requires: perl(B.pm) perl(O.pm) perl(Safe.pm)
 Conflicts: rpm-build <= 4.0.4-alt24
 Conflicts: perl-devel <= 1:5.8.1-alt4
 
-# Automatically added by buildreq on Mon Oct 23 2006
-BuildRequires: perl-devel
+# Automatically added by buildreq on Fri Mar 09 2007
+BuildRequires: perl-Encode-JP perl-Encode-KR perl-Filter perl-devel
 
 %description
 These herlper scripts will look at perl source files in your package,
@@ -30,24 +30,43 @@ tags for the package.
 %perl_vendor_build
 
 %install
-%perl_vendor_install INSTALLSCRIPT=%_rpmlibdir
+%perl_vendor_install INSTALLSCRIPT=%_rpmlibdir INSTALLVENDORSCRIPT=%_rpmlibdir
 mv %buildroot%perl_vendor_privlib/fake.pm %buildroot%_rpmlibdir/
 
 mkdir -p %buildroot/etc/rpm/macros.d
 cp -p perl5-alt-rpm-macros %buildroot/etc/rpm/macros.d/perl5
+cp -p macros.env %buildroot/etc/rpm/macros.d/perl5.env
 
 %files
 %doc README.ALT
 %_rpmlibdir/perl.req
+%_rpmlibdir/perl.req.files
 %_rpmlibdir/perl.prov
+%_rpmlibdir/perl.prov.files
 %_rpmlibdir/fake.pm
 %dir %perl_vendor_privlib/B
 %perl_vendor_privlib/B/PerlReq.pm
 %dir %perl_vendor_privlib/PerlReq
 %perl_vendor_privlib/PerlReq/Utils.pm
 %config /etc/rpm/macros.d/perl5
+%config /etc/rpm/macros.d/perl5.env
 
 %changelog
+* Wed Mar 28 2007 Alexey Tourbin <at@altlinux.ru> 0.6.2-alt1
+- B/PerlReq.pm:
+  + fixed Carp::confess syntax problem (rt.cpan.org #22512, reported by
+    Steve Peters); actually removed Carp::confess and added $^S check
+  + added Cygwin pattern to OS-specific dependencies
+  + grok_version: do nothing unless version is set, so that the code
+    like 'Module->VERSION()', which yields Module version, does not
+    produce dependency on the Module
+  + enhanced `use encoding ...' and PerlIO dependency detection
+- updated test suite for recent perl-5.8 snapshot
+- added new files, for possible use with future rpm-build releases:
+  + perl.req.files (perl.prov.files) - will select perl files for req/prov
+  + /etc/rpm/macros.d/perl.env - piece of rpm-build scriplets' preamble
+  + also placed a few rpm-build perl macros to /etc/rpm/macros.d/perl
+
 * Mon Oct 23 2006 Alexey Tourbin <at@altlinux.ru> 0.6.1-alt1
 - imported sources into git repo, which is available at
   git://git.altlinux.org/people/at/packages/rpm-build-perl.git
