@@ -30,6 +30,9 @@
 _perl_vendor_MB_build() { \
 	: writing Build script \
 	%__perl Build.PL installdirs=vendor "$@" </dev/null \
+	%__perl -e '$req=require"./_build/prereqs";' \\\
+		-e 'while (my ($k, $v) = each %%{$$req{requires}})	{ print "perl($k)>=$v\\n" }' \\\
+		-e 'while (my ($k, $v) = each %%{$$req{recommends}})	{ print "perl($k)>=$v\\n" }' | tee .perl.req \
 	: running Build script \
 	%__perl Build \
 	%{?!_without_test:%{?!_disable_test:: running tests; LD_BIND_NOW=1 PERL_DL_NONLAZY=1 %__perl Build test %{?_enable_debug:test_verbose=1}}} \
@@ -63,7 +66,7 @@ perl_vendor_build() { \
 	export PERL_EXTUTILS_AUTOINSTALL="${PERL_EXTUTILS_AUTOINSTALL:---skip}" \
 	export XSUBPP_STATIC_XS=${XSUBPP_STATIC_XS:-1} \
 		_perl_vendor_fixin \
-	if [ -f Build.PL ]; then \
+	if %__grep -qs -Ew '(dist|module)_name' Build.PL; then \
 		_perl_vendor_MB_build "$@" \
 	else \
 		_perl_vendor_MM_build "$@" \
@@ -85,8 +88,6 @@ _perl_vendor_MM_install() { \
 		INSTALLMAN1DIR=%buildroot%perl_vendor_man1dir \\\
 		INSTALLMAN3DIR=%buildroot%perl_vendor_man3dir \\\
  		pure_install "$@" </dev/null \
-	if %__grep -F 'perl(' .perl.req >&2; then \
-	   %__grep -F 'perl(' .perl.req >>%buildroot/.perl.req; fi \
 } \
 _perl_vendor_check_buildroot() { \
 	: prompting for files that contain /usr/local \
@@ -94,13 +95,18 @@ _perl_vendor_check_buildroot() { \
 	: prompting for files that contain /tmp \
 	find %buildroot -type f -not -name .packlist -exec %__grep -FH /tmp '{}' ';' \
 } \
+_perl_vendor_save_prereq() { \
+	if %__grep -F 'perl(' .perl.req >&2; then \
+	   %__grep -F 'perl(' .perl.req >>%buildroot/.perl.req; fi \
+} \
 perl_vendor_install() { \
-	if [ -f Build.PL ]; then \
+	if %__grep -qs -Ew '(dist|module)_name' Build.PL; then \
 		_perl_vendor_MB_install "$@" \
 	else \
 		_perl_vendor_MM_install "$@" \
 	fi \
 		_perl_vendor_check_buildroot \
+		_perl_vendor_save_prereq \
 } \
 perl_vendor_install
 
