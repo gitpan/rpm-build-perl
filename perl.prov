@@ -5,7 +5,11 @@ use strict;
 
 use PerlReq::Utils qw(argv explode inc mod2path path2mod path2dep sv_version verf);
 
-use autouse qw(Pod::Usage pod2usage);
+sub pod2usage {
+	eval { require Pod::Usage } or die $@;
+	goto &Pod::Usage::pod2usage;
+}
+
 use Getopt::Long 2.24 qw(GetOptions :config gnu_getopt);
 GetOptions
 	"v|verbose+"	=> \my $Verbose,
@@ -139,25 +143,21 @@ sub extract_version {
 	my ($fname, $line, $pkg) = @_;
 	warn "# extracting version at line $.:\n# $line\n" if $Verbose > 1;
 	my $code = "$line\n; \$VERSION";
-	$code =~ s/\$\Q$pkg\::VERSION/\$VERSION/g if $pkg;
-
-	require Safe;
-	local *Sandbox;
-	my $safe = Safe->new("Sandbox");
-	$safe->permit_only(qw(:base_core :base_mem :base_loop :base_orig entereval));
+	$code =~ s/\$\Q$pkg\E::VERSION/\$VERSION/g if $pkg;
 
 	if ($code =~ s/\buse\s+version\b[^;]*;//g or $code =~ /\bqv\b/
 		or $code =~ /\bversion(?:::)?->new\b/ or $code =~ /\bnew\s+version\b/)
 	{
-		eval { require version } or warn "# $@\n";
-		*Sandbox::qv = \&version::qv;
-		*Sandbox::version::new
-			= defined &version::vxs::new ? \&version::vxs::new
-			: defined &version::vpp::new ? \&version::vpp::new
-			: \&version::new;
+		package Sandbox;
+		eval "use version";
+		warn $@ if $@;
 	}
 
-	my $version = $safe->reval($code);
+	my $version = do {
+		package Sandbox;
+		no strict;
+		eval $code;
+	};
 	goto bad if not $version;
 
 	if (ref($version) =~ /\bversion\b/) {

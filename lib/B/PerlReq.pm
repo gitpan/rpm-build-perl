@@ -12,7 +12,7 @@
 #	and micro hacks.
 
 package B::PerlReq;
-our $VERSION = '0.72';
+our $VERSION = '0.74';
 
 use 5.006;
 use strict;
@@ -39,6 +39,7 @@ our @Skip = (
 	qr(^Exporter\.pm$),
 	qr(^strict\.pm$),
 	qr(^vars\.pm$),
+	qr(^warnings\.pm$),
 );
 
 our ($Strict, $Relaxed, $Verbose, $Debug);
