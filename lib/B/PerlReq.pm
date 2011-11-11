@@ -12,7 +12,7 @@
 #	and micro hacks.
 
 package B::PerlReq;
-our $VERSION = '0.76';
+our $VERSION = '0.77';
 
 use 5.006;
 use strict;
@@ -168,7 +168,7 @@ sub grok_import ($$@) {
 	my ($class, undef, @args) = @_;
 	return unless @args;
 	local $B::Walker::Opname = $class;
-	if ($class eq "base") {
+	if ($class eq "base" or $class eq "parent") {
 		foreach my $m (@args) {
 			my $f = mod2path($m);
 			# XXX Requires($f) if $INC{$f};
@@ -230,7 +230,10 @@ sub grok_method ($) { # class->method(args)
 		my $arg;
 		unless (@args) {
 			# the first arg is possibly a version
-			$arg = sv_version($sv);
+			# but skip << use overload "0+" => ... >>
+			unless ("$class->$method" eq "overload->import") {
+				$arg = sv_version($sv);
+			}
 		}
 		unless (defined $arg) {
 			# dereference sv value
@@ -279,6 +282,17 @@ sub grok_gv {
 	}
 }
 
+sub grok_padsv {
+	my $op = shift;
+	use B::Walker qw(padname);
+	my $padsv = padname($op->targ);
+	return unless $padsv->can('PV');
+	RequiresPerl(5.010) if $padsv->PV eq '$_';
+	use constant OPpPAD_STATE =>
+		defined &B::OPpPAD_STATE ? &B::OPpPAD_STATE : 0;
+	RequiresPerl(5.010) if $op->private & OPpPAD_STATE;
+}
+
 %B::Walker::Ops = (
 	'require'	=> \&grok_require,
 	'dofile'	=> \&grok_require,
@@ -288,6 +302,13 @@ sub grok_gv {
 	'dbmopen'	=> sub { Requires("AnyDBM_File.pm") },
 	'leavetry'	=> sub { $B::Walker::BlockData{Eval} = $B::Walker::Level },
 	'gv'		=> \&grok_gv,
+	'dor'		=> sub { RequiresPerl(5.010) },
+	'dorassign'	=> sub { RequiresPerl(5.010) },
+	'leavegiven'	=> sub { RequiresPerl(5.010) },
+	'leavewhen'	=> sub { RequiresPerl(5.010) },
+	'smartmatch'	=> sub { RequiresPerl(5.010) },
+	'say'		=> sub { RequiresPerl(5.010) },
+	'padsv'		=> \&grok_padsv,
 );
 
 sub compile {
