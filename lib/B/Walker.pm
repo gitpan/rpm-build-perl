@@ -43,7 +43,6 @@ sub walk_root ($);
 sub walk_root ($) {
 	my $op = shift;
 	my $ref = ref($op);
-	return unless $ref and $$op;
 	if ($ref eq "B::COP") {
 		$Line = $op->line;
 		return;
@@ -55,7 +54,12 @@ sub walk_root ($) {
 	local %BlockData = %BlockData if $startblock{$name};
 	local $Opname = $name if $Ops{$name};
 	$Ops{$name}->($op) if $Ops{$name} and $Line;
-	walk_root($op->pmreplroot) if $ref eq "B::PMOP";
+	if ($ref eq "B::PMOP") {
+		my $root = $op->pmreplroot;
+		if (ref($root) and $root->isa("B::OP")) {
+			walk_root($root);
+		}
+	}
 	use B qw(OPf_KIDS);
 	if ($op->flags & OPf_KIDS) {
 		for ($op = $op->first; $$op; $op = $op->sibling) {
@@ -84,7 +88,7 @@ sub walk_cv ($) {
 	return if ref($cv) ne "B::CV";
 	return if $cv->FILE and $cv->FILE ne $0;
 	local $CV = $cv;
-	walk_root($cv->ROOT);
+	walk_root($cv->ROOT) if ${$cv->ROOT};
 	walk_pad($cv->PADLIST);
 }
 
@@ -97,9 +101,9 @@ sub walk_blocks () {
 sub walk_main () {
 	use B qw(main_cv main_root);
 	local $Sub = "MAIN";
-	walk_cv(main_cv);
 	local $CV = main_cv;
-	walk_root(main_root);
+	walk_root(main_root) if ${main_root()};
+	walk_cv(main_cv);
 }
 
 sub walk_gv ($) {

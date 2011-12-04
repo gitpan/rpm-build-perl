@@ -1,5 +1,5 @@
 Name: rpm-build-perl
-Version: 0.78
+Version: 0.80
 Release: alt1
 
 Summary: RPM helper scripts to calculate Perl dependencies
@@ -11,8 +11,8 @@ Source: %name-%version.tar.gz
 
 BuildArch: noarch
 
-# Automatically added by buildreq on Fri Oct 21 2011
-BuildRequires: perl-Encode-JP perl-Encode-KR perl-Filter perl-devel
+# Automatically added by buildreq on Thu Nov 17 2011
+BuildRequires: perl-Encode-JP perl-Encode-KR perl-Filter perl-Try-Tiny perl-devel
 
 %description
 These herlper scripts will look at perl source files in your package,
@@ -51,6 +51,16 @@ cp -p macros.env %buildroot/etc/rpm/macros.d/perl5.env
 %config /etc/rpm/macros.d/perl5.env
 
 %changelog
+* Sat Nov 19 2011 Alexey Tourbin <at@altlinux.ru> 0.80-alt1
+- B/PerlReq.pm: IO::File->new(\$var, ...) requires PerlIO::scalar
+
+* Fri Nov 18 2011 Alexey Tourbin <at@altlinux.ru> 0.79-alt1
+- B/PerlReq.pm: unify func/method processing via entersub
+- B/PerlReq.pm: improved import method handling with list args
+- B/PerlReq.pm: improved 'my $_' handler introduced in 0.78
+- B/PerlReq.pm: stacked filetests require perl >= 5.10
+- B/PerlReq.pm: treat Try::Tiny::try() like eval
+
 * Mon Nov 14 2011 Alexey Tourbin <at@altlinux.ru> 0.78-alt1
 - MANIFEST: added perl.clean
 
