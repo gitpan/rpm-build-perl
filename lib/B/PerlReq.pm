@@ -12,7 +12,7 @@
 #	and micro hacks.
 
 package B::PerlReq;
-our $VERSION = '0.80';
+our $VERSION = '0.82';
 
 use 5.006;
 use strict;
@@ -215,6 +215,10 @@ sub grok_import ($$$) {
 	}
 	elsif ($class eq "overload") {
 		# avoid version check for << use overload "0+" => ... >>
+	}
+	elsif ($class eq "if") {
+		my $f = mod2path($args[1]);
+		Requires($f) if $args[0];
 	}
 	elsif ($args[0] =~ /^\d/) {
 		# the first import arg is possibly a version, see Exporter/Heavy.pm
